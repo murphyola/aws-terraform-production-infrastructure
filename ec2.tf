@@ -27,6 +27,26 @@ resource "aws_instance" "web" {
   associate_public_ip_address = true
   key_name                    = aws_key_pair.terraform_key.key_name
 
+  user_data = <<-EOF
+#!/bin/bash
+set -euxo pipefail
+
+exec > >(tee /var/log/user-data.log | logger -t user-data) 2>&1
+
+export DEBIAN_FRONTEND=noninteractive
+
+# Wait for cloud-init/apt locks to clear
+while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+    sleep 2
+done
+
+apt-get update -y
+apt-get install -y nginx
+
+systemctl enable nginx
+systemctl restart nginx
+EOF
+
   tags = {
     Name        = "production-server"
     Environment = "Production"
